@@ -4,6 +4,7 @@ AP33772-Cpp structs and register list ported from "AP33772 I2C Command Tester" b
 """
 
 import machine
+import uctypes
 
 AP33772_ADDRESS = const(0x51)
 CMD_SRCPDO = const(0x00)
@@ -21,6 +22,10 @@ READ_BUFF_LENGTH = const(30)
 WRITE_BUFF_LENGTH = const(6)
 SRCPDO_LENGTH = const(28)
 
+AP33772_STATUS = {
+    "isReady": 0 | uctypes.BFUINT8 | 0 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+}
+
 class AP33772:
     def __init__(self, id=0, scl=1, sda=0, freq=400000):
         """Construct and return an AP33772 object with the ID and GPIO pins of the peripheral"""
@@ -31,26 +36,20 @@ class AP33772:
 
         self._num_pdo = 0
         self._index_pdo = 0
-        self._req_pps_volt = 0
+        self._req_pps_volt = 0            
         self._pps_index = 8
 
     def _i2c_read(self, cmd_addr, length):
-        try:
-            self.read_buf = self.i2c.readfrom_mem(AP33772_ADDRESS, cmd_addr, length)
-            return list(self.read_buf)
-        except Exception as e:
-            print(f"I2C Read Error: {e}")
-            return None
+        return self.i2c.readfrom_mem(AP33772_ADDRESS, cmd_addr, length)
 
     def _i2c_write(self, cmd_addr, data):
-        try:
-            self.i2c.writeto_mem(AP33772_ADDRESS, cmd_addr, bytes(data))
-        except Exception as e:
-            print(f"I2C Write Error: {e}")
+        self.i2c.writeto_mem(AP33772_ADDRESS, cmd_addr, bytes(data))
 
     def begin(self):
         """Check if power supply is good and fetch the PDO profile."""
-        raise NotImplementedError()
+        data = self._i2c_read(CMD_STATUS, 1)
+        status = uctypes.struct(uctypes.addressof(data), AP33772_STATUS)
+        print(status.isReady) # type: ignore
 
     def set_voltage(self, target_voltage: int):
         """
@@ -110,7 +109,7 @@ class AP33772:
         """Write the desire power profile back to the power source."""
         raise NotImplementedError()
 
-    def read_voltage(self) -> int | None:
+    def read_voltage(self) -> int:
         """
         Read VBUS voltage.
         
@@ -118,11 +117,9 @@ class AP33772:
             voltage in mV
         """
         data = self._i2c_read(CMD_VOLTAGE, 1)
-        if data:
-            return data[0] * 80  # LSB: 80mV
-        return None
+        return data[0] * 80  # I2C read return 80mV/LSB
 
-    def read_current(self) -> int | None:
+    def read_current(self) -> int:
         """
         Read maximum VBUS current.
         
@@ -130,11 +127,9 @@ class AP33772:
             current in mA
         """
         data = self._i2c_read(CMD_CURRENT, 1)
-        if data:
-            return data[0] * 24  # LSB: 24mA
-        return None
+        return data[0] * 24  # I2C read return 24mA/LSB
 
-    def read_temp(self) -> int | None:
+    def read_temp(self) -> int:
         """
         Read NTC temperature.
         
@@ -142,30 +137,31 @@ class AP33772:
             temperature in mA
         """
         data = self._i2c_read(CMD_TEMP, 1)
-        if data:
-            return data[0]  # Unit: 1°C
-        return None
+        return data[0]  # I2C read return 1C/LSB
     
     def print_pdo(self):
         """Debug code to quickly check power supply profile PDOs."""
         raise NotImplementedError()
 
     def reset(self):
-        """Hard reset the power supply. Will temporary cause power outage."""
-        self._i2c_write(CMD_MASK, [0x00])
+        """Hard reset the power supply. Will temporary cause power outage."""    
+        # writeBuf[0] = 0x00;
+        # writeBuf[1] = 0x00;
+        # writeBuf[2] = 0x00;
+        # writeBuf[3] = 0x00;
+        # i2c_write(AP33772_ADDRESS, CMD_RDO, 4);
+        raise NotImplementedError()
 
-    def get_num_pdo(self) -> int | None:
+    def get_num_pdo(self) -> int:
         """Get the number of power profile, include PPS if exist."""
-        data = self._i2c_read(CMD_PDONUM, 1)
-        if data:
-            return data[0]
-        return None
+        # return numPDO;
+        raise NotImplementedError()
     
     def get_pps_index(self) -> int:
         """Get index of PPS profile."""
         raise NotImplementedError()
 
-    def get_pdo_max_current(self, pdo_index: int) -> int | None:
+    def get_pdo_max_current(self, pdo_index: int) -> int:
         """
         MaxCurrent for fixed voltage PDO.
 
@@ -175,11 +171,8 @@ class AP33772:
         Returns:
             Current in mAmp.
         """
-        data = self._i2c_read(CMD_SRCPDO + (pdo_index * 4), 4)
-        if data:
-            max_current = (data[0] & 0x3F) << 4 | (data[1] >> 4)
-            return max_current * 10  # Convert to mA
-        return None
+        # return pdoData[PDOindex].fixed.maxCurrent * 10;
+        raise NotImplementedError()
 
     def get_pdo_voltage(self, pdo_index: int):
         """
@@ -191,11 +184,8 @@ class AP33772:
         Returns:
             Voltage in mVolt.
         """
-        data = self._i2c_read(CMD_SRCPDO + (pdo_index * 4), 4)
-        if data:
-            voltage = (data[1] << 2) | (data[0] >> 6)
-            return voltage * 50  # Convert to mV
-        return None
+        # return pdoData[PDOindex].fixed.voltage * 50;
+        raise NotImplementedError()
     
     def get_pps_min_voltage(self, pps_index: int) -> int:
         """
