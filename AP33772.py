@@ -5,8 +5,9 @@ AP33772-Cpp structs and register list ported from "AP33772 I2C Command Tester" b
 
 import machine
 import uctypes
+import time
 
-AP33772_ADDRESS = const(0x51)
+
 CMD_SRCPDO = const(0x00)
 CMD_PDONUM = const(0x1C)
 CMD_STATUS = const(0x1D)
@@ -18,13 +19,26 @@ CMD_OCPTHR = const(0x23)
 CMD_OTPTHR = const(0x24)
 CMD_DRTHR = const(0x25)
 CMD_RDO = const(0x30)
+
+AP33772_ADDRESS = const(0x51)
 READ_BUFF_LENGTH = const(30)
 WRITE_BUFF_LENGTH = const(6)
 SRCPDO_LENGTH = const(28)
 
 AP33772_STATUS = {
-    "isReady": 0 | uctypes.BFUINT8 | 0 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    # Field: # bytes offset | data type | bit position in data | # of bits
+    "isReady":      0 | uctypes.BFUINT8 | 0 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isSuccess":    0 | uctypes.BFUINT8 | 1 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isNewpdo":     0 | uctypes.BFUINT8 | 2 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isOvp":        0 | uctypes.BFUINT8 | 4 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isOcp":        0 | uctypes.BFUINT8 | 5 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isOtp":        0 | uctypes.BFUINT8 | 6 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isDR":         0 | uctypes.BFUINT8 | 7 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
 }
+
+# PDO_FIXED_DATA
+
+# PDO_PPS_DATA
 
 class AP33772:
     def __init__(self, id=0, scl=1, sda=0, freq=400000):
@@ -49,7 +63,19 @@ class AP33772:
         """Check if power supply is good and fetch the PDO profile."""
         data = self._i2c_read(CMD_STATUS, 1)
         status = uctypes.struct(uctypes.addressof(data), AP33772_STATUS)
-        print(status.isReady) # type: ignore
+        time.sleep_ms(10)
+
+        # If negotiation is finished and successful
+        if status.isReady and status.isSuccess: # type: ignore
+            data = self._i2c_read(CMD_PDONUM, 1)
+            self._num_pdo = data[0]
+
+            data = self._i2c_read(CMD_SRCPDO, SRCPDO_LENGTH)
+            for i in range(self._num_pdo):
+                # if ((pdoData[i].byte3 & 0xF0) == 0xC0) // PPS profile found
+                pass
+
+
 
     def set_voltage(self, target_voltage: int):
         """
