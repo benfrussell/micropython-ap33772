@@ -26,19 +26,33 @@ WRITE_BUFF_LENGTH = const(6)
 SRCPDO_LENGTH = const(28)
 
 AP33772_STATUS = {
-    # Field: # bytes offset | data type | bit position in data | # of bits
-    "isReady":      0 | uctypes.BFUINT8 | 0 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
-    "isSuccess":    0 | uctypes.BFUINT8 | 1 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
-    "isNewpdo":     0 | uctypes.BFUINT8 | 2 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
-    "isOvp":        0 | uctypes.BFUINT8 | 4 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
-    "isOcp":        0 | uctypes.BFUINT8 | 5 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
-    "isOtp":        0 | uctypes.BFUINT8 | 6 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
-    "isDR":         0 | uctypes.BFUINT8 | 7 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isReady":      uctypes.BFUINT8 | 0 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isSuccess":    uctypes.BFUINT8 | 1 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isNewpdo":     uctypes.BFUINT8 | 2 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "reserved":     uctypes.BFUINT8 | 3 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isOvp":        uctypes.BFUINT8 | 4 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isOcp":        uctypes.BFUINT8 | 5 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isOtp":        uctypes.BFUINT8 | 6 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "isDR":         uctypes.BFUINT8 | 7 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
 }
 
-# PDO_FIXED_DATA
+PDO_FIXED_DATA = {
+    "maxCurrent":   uctypes.BFUINT32 | 00 << uctypes.BF_POS | 10 << uctypes.BF_LEN,
+    "voltage":      uctypes.BFUINT32 | 10 << uctypes.BF_POS | 10 << uctypes.BF_LEN,
+    "reserved_1":   uctypes.BFUINT32 | 20 << uctypes.BF_POS | 10 << uctypes.BF_LEN,
+    "type":         uctypes.BFUINT32 | 30 << uctypes.BF_POS | 2 << uctypes.BF_LEN,
+}
 
-# PDO_PPS_DATA
+PDO_PPS_DATA = {
+    "maxCurrent":   uctypes.BFUINT32 | 0 << uctypes.BF_POS | 7 << uctypes.BF_LEN,
+    "reserved_1":   uctypes.BFUINT32 | 7 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "minVoltage":   uctypes.BFUINT32 | 8 << uctypes.BF_POS | 8 << uctypes.BF_LEN,
+    "reserved_2":   uctypes.BFUINT32 | 16 << uctypes.BF_POS | 1 << uctypes.BF_LEN,
+    "maxVoltage":   uctypes.BFUINT32 | 17 << uctypes.BF_POS | 8 << uctypes.BF_LEN,
+    "reserved_3":   uctypes.BFUINT32 | 25 << uctypes.BF_POS | 3 << uctypes.BF_LEN,
+    "apdo":         uctypes.BFUINT32 | 28 << uctypes.BF_POS | 2 << uctypes.BF_LEN,
+    "type":         uctypes.BFUINT32 | 30 << uctypes.BF_POS | 2 << uctypes.BF_LEN,
+}
 
 class AP33772:
     def __init__(self, id=0, scl=1, sda=0, freq=400000):
@@ -52,6 +66,7 @@ class AP33772:
         self._index_pdo = 0
         self._req_pps_volt = 0            
         self._pps_index = 8
+        self._pdo_data = []
 
     def _i2c_read(self, cmd_addr, length):
         return self.i2c.readfrom_mem(AP33772_ADDRESS, cmd_addr, length)
@@ -72,9 +87,20 @@ class AP33772:
 
             data = self._i2c_read(CMD_SRCPDO, SRCPDO_LENGTH)
             for i in range(self._num_pdo):
-                # if ((pdoData[i].byte3 & 0xF0) == 0xC0) // PPS profile found
-                pass
-
+                # Profile type is defined in the last four bits of every 4th byte
+                # If profile == 1100, it's a PPS profile
+                isPPS = data[i * 4 + 3] & 0xF0 == 0xC0
+                pdo_data = data[i:i+4]
+                if isPPS:
+                    self._pdo_data.append(
+                        uctypes.struct(uctypes.addressof(pdo_data), PDO_PPS_DATA)
+                    )
+                    self._pps_index = i
+                    self.exist_pps = 1
+                else:
+                    self._pdo_data.append(
+                        uctypes.struct(uctypes.addressof(pdo_data), PDO_FIXED_DATA)
+                    )
 
 
     def set_voltage(self, target_voltage: int):
