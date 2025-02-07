@@ -87,10 +87,10 @@ class AP33772:
 
             data = self._i2c_read(CMD_SRCPDO, SRCPDO_LENGTH)
             for i in range(self._num_pdo):
+                pdo_data = data[i * 4:(i + 1) * 4]
                 # Profile type is defined in the last four bits of every 4th byte
                 # If profile == 1100, it's a PPS profile
-                isPPS = data[i * 4 + 3] & 0xF0 == 0xC0
-                pdo_data = data[i:i+4]
+                isPPS = pdo_data[3] & 0xF0 == 0xC0
                 if isPPS:
                     self._pdo_data.append(
                         uctypes.struct(uctypes.addressof(pdo_data), PDO_PPS_DATA)
@@ -193,7 +193,15 @@ class AP33772:
     
     def print_pdo(self):
         """Debug code to quickly check power supply profile PDOs."""
-        raise NotImplementedError()
+        print(f"Source PDO Number = {self._num_pdo}\n")
+
+        for i, pdo in enumerate(self._pdo_data):
+            if i == self._pps_index:
+                print(f"PDO[{i + 1}] - PPS : {pdo.minVoltage * 100 / 1000}V~{pdo.maxVoltage * 100 / 1000}V @ {pdo.maxCurrent * 50 / 1000}A")
+            else:
+                print(f"PDO[{i + 1}] - Fixed : {pdo.voltage * 50 / 1000}V @ {pdo.maxCurrent * 10 / 1000}A")
+        print("===============================================")
+
 
     def reset(self):
         """Hard reset the power supply. Will temporary cause power outage."""    
