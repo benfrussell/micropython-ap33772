@@ -103,7 +103,7 @@ class AP33772:
         return self.i2c.readfrom_mem(AP33772_ADDRESS, cmd_addr, length)
 
     def _i2c_write(self, cmd_addr, data):
-        self.i2c.writeto_mem(AP33772_ADDRESS, cmd_addr, bytes(data))
+        self.i2c.writeto_mem(AP33772_ADDRESS, cmd_addr, data)
 
     def write_rdo(self):
         self._i2c_write(CMD_RDO, self._rdo_data.data)
@@ -132,6 +132,15 @@ class AP33772:
                 else:
                     self._pdo_data.append(PDO(fixed=pdo_data))
 
+    def set_supply_voltage_current(self, target_voltage: int, target_current: int):
+        """     
+        Set VBUS voltage and max current. Current will automatically be in limit mode.
+        
+        Args:
+            target_voltage: mV 
+            target_current: mA
+        """
+        raise NotImplementedError()
 
     def set_voltage(self, target_voltage: int):
         """
@@ -172,7 +181,6 @@ class AP33772:
             self._rdo_data.fixed.maxCurrent = self._pdo_data[pdo_index].fixed.maxCurrent # type: ignore
             self._rdo_data.fixed.opCurrent = self._pdo_data[pdo_index].fixed.maxCurrent # type: ignore
             self.write_rdo()
-
 
     def set_ntc(self, tr25: int, tr50: int, tr75: int, tr100: int):
         """
@@ -248,16 +256,16 @@ class AP33772:
         # writeBuf[2] = 0x00;
         # writeBuf[3] = 0x00;
         # i2c_write(AP33772_ADDRESS, CMD_RDO, 4);
-        raise NotImplementedError()
+        self._i2c_write(CMD_RDO, bytes([0x0] * 4))
 
     def get_num_pdo(self) -> int:
         """Get the number of power profile, include PPS if exist."""
         # return numPDO;
-        raise NotImplementedError()
+        return self._num_pdo
     
     def get_pps_index(self) -> int:
         """Get index of PPS profile."""
-        raise NotImplementedError()
+        return self._pps_index
 
     def get_pdo_max_current(self, pdo_index: int) -> int:
         """
@@ -269,8 +277,7 @@ class AP33772:
         Returns:
             Current in mAmp.
         """
-        # return pdoData[PDOindex].fixed.maxCurrent * 10;
-        raise NotImplementedError()
+        return self._pdo_data[pdo_index].maxCurrent * 10
 
     def get_pdo_voltage(self, pdo_index: int):
         """
@@ -282,9 +289,9 @@ class AP33772:
         Returns:
             Voltage in mVolt.
         """
-        # return pdoData[PDOindex].fixed.voltage * 50;
-        raise NotImplementedError()
+        return self._pdo_data[pdo_index].voltage * 50
     
+    # Test with PPS
     def get_pps_min_voltage(self, pps_index: int) -> int:
         """
         Get PPS min voltage.
@@ -295,8 +302,9 @@ class AP33772:
         Returns:
             Voltage in mVolt.
         """
-        raise NotImplementedError()
+        return self._pdo_data[self._pps_index].minVoltage * 100
 
+    # Test with PPS
     def get_pps_max_voltage(self, pps_index: int) -> int:
         """
         Get PPS max voltage.
@@ -307,8 +315,9 @@ class AP33772:
         Returns:
             Voltage in mVolt.
         """
-        raise NotImplementedError()
+        return self._pdo_data[self._pps_index].maxVoltage * 100
 
+    # Test with PPS
     def get_pps_max_current(self, pps_index: int) -> int:
         """
         Get PPS max current.
@@ -319,7 +328,7 @@ class AP33772:
         Returns:
             Current in mAmp.
         """
-        raise NotImplementedError()
+        return self._pdo_data[self._pps_index].maxCurrent * 50
 
     def set_supply_voltage_current(self, target_voltage: int, target_current: int):
         """     
@@ -338,4 +347,3 @@ class AP33772:
             self._rdo_data.pps.opCurrent = target_current / 50 # type: ignore
             self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
             self.write_rdo()
-
