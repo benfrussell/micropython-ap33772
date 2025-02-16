@@ -21,53 +21,51 @@ CMD_DRTHR = const(0x25)
 CMD_RDO = const(0x30)
 
 AP33772_ADDRESS = const(0x51)
-READ_BUFF_LENGTH = const(30)
-WRITE_BUFF_LENGTH = const(6)
 SRCPDO_LENGTH = const(28)
 
 AP33772_STATUS = {
-    "isReady":      BFUINT8 | 0 << BF_POS | 1 << BF_LEN,
-    "isSuccess":    BFUINT8 | 1 << BF_POS | 1 << BF_LEN,
-    "isNewpdo":     BFUINT8 | 2 << BF_POS | 1 << BF_LEN,
+    "is_ready":      BFUINT8 | 0 << BF_POS | 1 << BF_LEN,
+    "is_success":    BFUINT8 | 1 << BF_POS | 1 << BF_LEN,
+    "is_new_pdo":     BFUINT8 | 2 << BF_POS | 1 << BF_LEN,
     "reserved":     BFUINT8 | 3 << BF_POS | 1 << BF_LEN,
-    "isOvp":        BFUINT8 | 4 << BF_POS | 1 << BF_LEN,
-    "isOcp":        BFUINT8 | 5 << BF_POS | 1 << BF_LEN,
-    "isOtp":        BFUINT8 | 6 << BF_POS | 1 << BF_LEN,
-    "isDR":         BFUINT8 | 7 << BF_POS | 1 << BF_LEN,
+    "is_ovp":        BFUINT8 | 4 << BF_POS | 1 << BF_LEN,
+    "is_ocp":        BFUINT8 | 5 << BF_POS | 1 << BF_LEN,
+    "is_otp":        BFUINT8 | 6 << BF_POS | 1 << BF_LEN,
+    "is_dr":         BFUINT8 | 7 << BF_POS | 1 << BF_LEN,
 }
 
 PDO_FIXED_DATA = {
-    "maxCurrent":   BFUINT32 | 00 << BF_POS | 10 << BF_LEN,
+    "max_current":   BFUINT32 | 00 << BF_POS | 10 << BF_LEN,
     "voltage":      BFUINT32 | 10 << BF_POS | 10 << BF_LEN,
     "reserved_1":   BFUINT32 | 20 << BF_POS | 10 << BF_LEN,
     "type":         BFUINT32 | 30 << BF_POS | 2 << BF_LEN,
 }
 
 PDO_PPS_DATA = {
-    "maxCurrent":   BFUINT32 | 0 << BF_POS | 7 << BF_LEN,
+    "max_current":   BFUINT32 | 0 << BF_POS | 7 << BF_LEN,
     "reserved_1":   BFUINT32 | 7 << BF_POS | 1 << BF_LEN,
-    "minVoltage":   BFUINT32 | 8 << BF_POS | 8 << BF_LEN,
+    "min_voltage":   BFUINT32 | 8 << BF_POS | 8 << BF_LEN,
     "reserved_2":   BFUINT32 | 16 << BF_POS | 1 << BF_LEN,
-    "maxVoltage":   BFUINT32 | 17 << BF_POS | 8 << BF_LEN,
+    "max_voltage":   BFUINT32 | 17 << BF_POS | 8 << BF_LEN,
     "reserved_3":   BFUINT32 | 25 << BF_POS | 3 << BF_LEN,
     "apdo":         BFUINT32 | 28 << BF_POS | 2 << BF_LEN,
     "type":         BFUINT32 | 30 << BF_POS | 2 << BF_LEN,
 }
 
 RDO_FIXED_DATA = {
-    "maxCurrent":   BFUINT32 | 00 << BF_POS | 10 << BF_LEN,
-    "opCurrent":    BFUINT32 | 10 << BF_POS | 10 << BF_LEN,
+    "max_current":   BFUINT32 | 00 << BF_POS | 10 << BF_LEN,
+    "op_current":    BFUINT32 | 10 << BF_POS | 10 << BF_LEN,
     "reserved_1":   BFUINT32 | 20 << BF_POS | 8 << BF_LEN,
-    "objPosition":  BFUINT32 | 28 << BF_POS | 3 << BF_LEN,
+    "obj_position":  BFUINT32 | 28 << BF_POS | 3 << BF_LEN,
     "reserved_2":   BFUINT32 | 31 << BF_POS | 1 << BF_LEN,
 }
 
 RDO_PPS_DATA = {
-    "opCurrent":    BFUINT32 | 0 << BF_POS | 7 << BF_LEN,
+    "op_current":    BFUINT32 | 0 << BF_POS | 7 << BF_LEN,
     "reserved_1":   BFUINT32 | 7 << BF_POS | 2 << BF_LEN,
     "voltage":      BFUINT32 | 9 << BF_POS | 11 << BF_LEN,
     "reserved_2":   BFUINT32 | 20 << BF_POS | 8 << BF_LEN,
-    "objPosition":  BFUINT32 | 28 << BF_POS | 3 << BF_LEN,
+    "obj_position":  BFUINT32 | 28 << BF_POS | 3 << BF_LEN,
     "reserved_3":   BFUINT32 | 31 << BF_POS | 1 << BF_LEN,
 }
 
@@ -78,18 +76,16 @@ class RDO:
         self.fixed = struct(addressof(self.data), RDO_FIXED_DATA)
 
 class PDO:
-    def __init__(self, fixed=None, pps=None):
-        if fixed is not None:
-            self.fixed = struct(addressof(fixed), PDO_FIXED_DATA)
-        elif pps is not None:
-            self.pps = struct(addressof(pps), PDO_PPS_DATA)
+    def __init__(self, fixed_bytes=None, pps_bytes=None):
+        if fixed_bytes is not None:
+            self.fixed = struct(addressof(fixed_bytes), PDO_FIXED_DATA)
+        elif pps_bytes is not None:
+            self.pps = struct(addressof(pps_bytes), PDO_PPS_DATA)
 
 class AP33772:
     def __init__(self, id=0, scl=1, sda=0, freq=400000):
         """Construct and return an AP33772 object with the ID and GPIO pins of the peripheral"""
         self.i2c = machine.I2C(id, scl=machine.Pin(scl), sda=machine.Pin(sda), freq=freq)
-        self.read_buf = bytearray(READ_BUFF_LENGTH)
-        self.write_buf = bytearray(WRITE_BUFF_LENGTH)
         self.exist_pps = 0
 
         self._num_pdo = 0
@@ -115,7 +111,7 @@ class AP33772:
         time.sleep_ms(10)
 
         # If negotiation is finished and successful
-        if status.isReady and status.isSuccess: # type: ignore
+        if status.is_ready and status.is_success: # type: ignore
             data = self._i2c_read(CMD_PDONUM, 1)
             self._num_pdo = data[0]
 
@@ -126,21 +122,11 @@ class AP33772:
                 # If profile == 1100, it's a PPS profile
                 isPPS = pdo_data[3] & 0xF0 == 0xC0
                 if isPPS:
-                    self._pdo_data.append(PDO(pps=pdo_data))
+                    self._pdo_data.append(PDO(pps_bytes=pdo_data))
                     self._pps_index = i
                     self.exist_pps = 1
                 else:
-                    self._pdo_data.append(PDO(fixed=pdo_data))
-
-    def set_supply_voltage_current(self, target_voltage: int, target_current: int):
-        """     
-        Set VBUS voltage and max current. Current will automatically be in limit mode.
-        
-        Args:
-            target_voltage: mV 
-            target_current: mA
-        """
-        raise NotImplementedError()
+                    self._pdo_data.append(PDO(fixed_bytes=pdo_data))
 
     def set_voltage(self, target_voltage: int):
         """
@@ -149,8 +135,35 @@ class AP33772:
         Args:
             target_voltage: mV
         """
-        voltage_val = target_voltage // 80  # Convert mV to LSB
-        self._i2c_write(CMD_VOLTAGE, [voltage_val])
+        pps_index = self._pps_index
+        if self.exist_pps and self._pdo_data[pps_index].pps.max_voltage * 100 >= target_voltage and self._pdo_data[pps_index].pps.min_voltage * 100 <= target_voltage:
+            self._req_pps_volt = target_voltage / 20
+            self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
+            self._rdo_data.pps.op_current = pps_pdo_data.max_current # type: ignore
+            self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
+            self.write_rdo()
+        else:
+            temp_index = 0
+            # Find which fixed is closest to the target voltage without going over
+            for i in range(self._num_pdo - self.exist_pps):
+                if self._pdo_data[i].fixed.voltage * 50 <= target_voltage:
+                    temp_index = i
+
+            # Check if found the closest fixed voltage is higher than what PPS can reach
+            # It looks like this line would fail if there's no PPS PDO
+            if self._pdo_data[temp_index].fixed.voltage * 50 > self._pdo_data[pps_index].pps.max_voltage * 100:
+                self._index_pdo = temp_index
+                self._rdo_data.fixed.obj_position = temp_index + 1 # type: ignore
+                self._rdo_data.fixed.max_current = self._pdo_data[temp_index].fixed.max_current # type: ignore
+                self._rdo_data.fixed.op_current = self._pdo_data[temp_index].fixed.max_current # type: ignore
+                self.write_rdo()
+            else:
+                self._index_pdo = pps_index
+                self._req_pps_volt = self._pdo_data[pps_index].pps.max_voltage * 5
+                self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
+                self._rdo_data.pps.op_current = self._pdo_data[pps_index].pps.max_current # type: ignore
+                self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
+                self.write_rdo()
 
     def set_max_current(self, target_max_current: int):
         """
@@ -159,8 +172,20 @@ class AP33772:
         Args:
             target_max_current: mA
         """
-        current_val = target_max_current // 24  # Convert mA to LSB
-        self._i2c_write(CMD_CURRENT, [current_val])
+        index_pdo = self._index_pdo
+        pps_index = self._pps_index
+        if index_pdo == pps_index:
+            if target_max_current <= self._pdo_data[pps_index].pps.max_current * 50:
+                self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
+                self._rdo_data.pps.op_current = target_max_current / 50 # type: ignore
+                self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
+                self.write_rdo()
+        else:
+            if target_max_current <= self._pdo_data[index_pdo].fixed.max_current * 10:
+                self._rdo_data.fixed.obj_position = index_pdo + 1 # type: ignore
+                self._rdo_data.fixed.max_current = target_max_current / 10 # type: ignore
+                self._rdo_data.fixed.op_current = target_max_current / 10 # type: ignore
+                self.write_rdo()
 
     def set_pdo(self, pdo_index: int):
         """
@@ -177,9 +202,9 @@ class AP33772:
 
         # Does this work for PPS?
         if pdo_index <= guarding:
-            self._rdo_data.fixed.objPosition = pdo_index - 1 # type: ignore
-            self._rdo_data.fixed.maxCurrent = self._pdo_data[pdo_index].fixed.maxCurrent # type: ignore
-            self._rdo_data.fixed.opCurrent = self._pdo_data[pdo_index].fixed.maxCurrent # type: ignore
+            self._rdo_data.fixed.obj_position = pdo_index - 1 # type: ignore
+            self._rdo_data.fixed.max_current = self._pdo_data[pdo_index].fixed.max_current # type: ignore
+            self._rdo_data.fixed.op_current = self._pdo_data[pdo_index].fixed.max_current # type: ignore
             self.write_rdo()
 
     def set_ntc(self, tr25: int, tr50: int, tr75: int, tr100: int):
@@ -190,7 +215,16 @@ class AP33772:
         Args:
             tr25, tr50, tr75, tr100: Ohms
         """
-        raise NotImplementedError()
+        self._i2c_write(0x28, bytes([(tr25 & 0xFF), (tr25 >> 8) & 0xFF]))
+        time.sleep_ms(5)
+
+        self._i2c_write(0x2A, bytes([(tr50 & 0xFF), (tr50 >> 8) & 0xFF]))
+        time.sleep_ms(5)
+
+        self._i2c_write(0x2C, bytes([(tr75 & 0xFF), (tr75 >> 8) & 0xFF]))
+        time.sleep_ms(5)
+
+        self._i2c_write(0x2E, bytes([(tr100 & 0xFF), (tr100 >> 8) & 0xFF]))
 
     def set_derating_temp(self, temperature: int):
         """
@@ -199,13 +233,19 @@ class AP33772:
         Args:
             temperature: unit in Celcius
         """
-        raise NotImplementedError()
+        self._i2c_write(CMD_DRTHR, bytes([temperature]))
 
     def set_mask(self, flag):
-        raise NotImplementedError()
+        mask_read = self._i2c_read(CMD_MASK, 1)
+        new_mask = mask_read[0] | flag
+        time.sleep_ms(5)
+        self._i2c_write(CMD_MASK, bytes([new_mask]))
 
     def clear_mask(self, flag):
-        raise NotImplementedError()
+        mask_read = self._i2c_read(CMD_MASK, 1)
+        new_mask = mask_read[0] | ~flag
+        time.sleep_ms(5)
+        self._i2c_write(CMD_MASK, bytes([new_mask]))
 
     def read_voltage(self) -> int:
         """
@@ -243,24 +283,18 @@ class AP33772:
 
         for i, pdo in enumerate(self._pdo_data):
             if i == self._pps_index:
-                print(f"PDO[{i + 1}] - PPS : {pdo.pps.minVoltage * 100 / 1000}V~{pdo.pps.maxVoltage * 100 / 1000}V @ {pdo.pps.maxCurrent * 50 / 1000}A")
+                print(f"PDO[{i + 1}] - PPS : {pdo.pps.min_voltage * 100 / 1000}V~{pdo.pps.max_voltage * 100 / 1000}V @ {pdo.pps.max_current * 50 / 1000}A")
             else:
-                print(f"PDO[{i + 1}] - Fixed : {pdo.fixed.voltage * 50 / 1000}V @ {pdo.fixed.maxCurrent * 10 / 1000}A")
+                print(f"PDO[{i + 1}] - Fixed : {pdo.fixed.voltage * 50 / 1000}V @ {pdo.fixed.max_current * 10 / 1000}A")
         print("===============================================")
 
 
     def reset(self):
         """Hard reset the power supply. Will temporary cause power outage."""    
-        # writeBuf[0] = 0x00;
-        # writeBuf[1] = 0x00;
-        # writeBuf[2] = 0x00;
-        # writeBuf[3] = 0x00;
-        # i2c_write(AP33772_ADDRESS, CMD_RDO, 4);
         self._i2c_write(CMD_RDO, bytes([0x0] * 4))
 
     def get_num_pdo(self) -> int:
         """Get the number of power profile, include PPS if exist."""
-        # return numPDO;
         return self._num_pdo
     
     def get_pps_index(self) -> int:
@@ -269,7 +303,7 @@ class AP33772:
 
     def get_pdo_max_current(self, pdo_index: int) -> int:
         """
-        MaxCurrent for fixed voltage PDO.
+        max_current for fixed voltage PDO.
 
         Args:
             pdo_index: Integer in range 0-255.
@@ -277,7 +311,7 @@ class AP33772:
         Returns:
             Current in mAmp.
         """
-        return self._pdo_data[pdo_index].maxCurrent * 10
+        return self._pdo_data[pdo_index].max_current * 10
 
     def get_pdo_voltage(self, pdo_index: int):
         """
@@ -302,7 +336,7 @@ class AP33772:
         Returns:
             Voltage in mVolt.
         """
-        return self._pdo_data[self._pps_index].minVoltage * 100
+        return self._pdo_data[self._pps_index].min_voltage * 100
 
     # Test with PPS
     def get_pps_max_voltage(self, pps_index: int) -> int:
@@ -315,7 +349,7 @@ class AP33772:
         Returns:
             Voltage in mVolt.
         """
-        return self._pdo_data[self._pps_index].maxVoltage * 100
+        return self._pdo_data[self._pps_index].max_voltage * 100
 
     # Test with PPS
     def get_pps_max_current(self, pps_index: int) -> int:
@@ -328,7 +362,7 @@ class AP33772:
         Returns:
             Current in mAmp.
         """
-        return self._pdo_data[self._pps_index].maxCurrent * 50
+        return self._pdo_data[self._pps_index].max_current * 50
 
     def set_supply_voltage_current(self, target_voltage: int, target_current: int):
         """     
@@ -340,10 +374,10 @@ class AP33772:
         """
         pps_profile = self._pdo_data[self._pps_index]
         pps_index = self._pps_index
-        if self.exist_pps and pps_profile.maxVoltage * 100 >= target_voltage and pps_profile.minVoltage * 100 <= target_voltage:
+        if self.exist_pps and pps_profile.max_voltage * 100 >= target_voltage and pps_profile.min_voltage * 100 <= target_voltage:
             self._index_pdo = pps_index
             self._req_pps_volt = target_voltage / 20
-            self._rdo_data.pps.objPosition = pps_index + 1 # type: ignore
-            self._rdo_data.pps.opCurrent = target_current / 50 # type: ignore
+            self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
+            self._rdo_data.pps.op_current = target_current / 50 # type: ignore
             self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
             self.write_rdo()
