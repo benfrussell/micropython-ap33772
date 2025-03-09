@@ -128,6 +128,24 @@ class AP33772:
                 else:
                     self._pdo_data.append(PDO(fixed_bytes=pdo_data))
 
+    def set_supply_voltage_current(self, target_voltage: int, target_current: int):
+        """     
+        Set VBUS voltage and max current. Current will automatically be in limit mode.
+        
+        Args:
+            target_voltage: mV 
+            target_current: mA
+        """
+        pps_profile = self._pdo_data[self._pps_index].pps
+        pps_index = self._pps_index
+        if self.exist_pps and pps_profile.max_voltage * 100 >= target_voltage and pps_profile.min_voltage * 100 <= target_voltage:
+            self._index_pdo = pps_index
+            self._req_pps_volt = target_voltage / 20
+            self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
+            self._rdo_data.pps.op_current = target_current / 50 # type: ignore
+            self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
+            self.write_rdo()
+
     def set_voltage(self, target_voltage: int):
         """
         Set VBUS voltage.
@@ -311,7 +329,7 @@ class AP33772:
         Returns:
             Current in mAmp.
         """
-        return self._pdo_data[pdo_index].max_current * 10
+        return self._pdo_data[pdo_index].fixed.max_current * 10
 
     def get_pdo_voltage(self, pdo_index: int):
         """
@@ -323,7 +341,7 @@ class AP33772:
         Returns:
             Voltage in mVolt.
         """
-        return self._pdo_data[pdo_index].voltage * 50
+        return self._pdo_data[pdo_index].fixed.voltage * 50
     
     # Test with PPS
     def get_pps_min_voltage(self, pps_index: int) -> int:
@@ -336,7 +354,7 @@ class AP33772:
         Returns:
             Voltage in mVolt.
         """
-        return self._pdo_data[self._pps_index].min_voltage * 100
+        return self._pdo_data[pps_index].pps.min_voltage * 100
 
     # Test with PPS
     def get_pps_max_voltage(self, pps_index: int) -> int:
@@ -349,7 +367,7 @@ class AP33772:
         Returns:
             Voltage in mVolt.
         """
-        return self._pdo_data[self._pps_index].max_voltage * 100
+        return self._pdo_data[pps_index].pps.max_voltage * 100
 
     # Test with PPS
     def get_pps_max_current(self, pps_index: int) -> int:
@@ -362,22 +380,4 @@ class AP33772:
         Returns:
             Current in mAmp.
         """
-        return self._pdo_data[self._pps_index].max_current * 50
-
-    def set_supply_voltage_current(self, target_voltage: int, target_current: int):
-        """     
-        Set VBUS voltage and max current. Current will automatically be in limit mode.
-        
-        Args:
-            target_voltage: mV 
-            target_current: mA
-        """
-        pps_profile = self._pdo_data[self._pps_index]
-        pps_index = self._pps_index
-        if self.exist_pps and pps_profile.max_voltage * 100 >= target_voltage and pps_profile.min_voltage * 100 <= target_voltage:
-            self._index_pdo = pps_index
-            self._req_pps_volt = target_voltage / 20
-            self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
-            self._rdo_data.pps.op_current = target_current / 50 # type: ignore
-            self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
-            self.write_rdo()
+        return self._pdo_data[pps_index].pps.max_current * 50
