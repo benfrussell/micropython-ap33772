@@ -46,7 +46,6 @@ def fixed_tests(ap: AP33772, index):
     ap.set_voltage(voltage)
     sleep(1)
 
-# Return true for success or false for failure
 def run_tests(ap: AP33772):
     try:
         ap.begin()
