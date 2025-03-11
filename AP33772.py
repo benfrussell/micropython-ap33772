@@ -167,9 +167,9 @@ class AP33772:
                 if self._pdo_data[i].fixed.voltage * 50 <= target_voltage:
                     temp_index = i
 
-            # Check if found the closest fixed voltage is higher than what PPS can reach
+            # Check if the closest fixed voltage is higher than what PPS can reach
             # It looks like this line would fail if there's no PPS PDO
-            if self._pdo_data[temp_index].fixed.voltage * 50 > self._pdo_data[pps_index].pps.max_voltage * 100:
+            if not self.exist_pps or (self._pdo_data[temp_index].fixed.voltage * 50 > self._pdo_data[pps_index].pps.max_voltage * 100):
                 self._index_pdo = temp_index
                 self._rdo_data.fixed.obj_position = temp_index + 1 # type: ignore
                 self._rdo_data.fixed.max_current = self._pdo_data[temp_index].fixed.max_current # type: ignore
@@ -195,14 +195,14 @@ class AP33772:
         if index_pdo == pps_index:
             if target_max_current <= self._pdo_data[pps_index].pps.max_current * 50:
                 self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
-                self._rdo_data.pps.op_current = target_max_current / 50 # type: ignore
+                self._rdo_data.pps.op_current = int(target_max_current / 50) # type: ignore
                 self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
                 self.write_rdo()
         else:
             if target_max_current <= self._pdo_data[index_pdo].fixed.max_current * 10:
                 self._rdo_data.fixed.obj_position = index_pdo + 1 # type: ignore
-                self._rdo_data.fixed.max_current = target_max_current / 10 # type: ignore
-                self._rdo_data.fixed.op_current = target_max_current / 10 # type: ignore
+                self._rdo_data.fixed.max_current = int(target_max_current / 10) # type: ignore
+                self._rdo_data.fixed.op_current = int(target_max_current / 10) # type: ignore
                 self.write_rdo()
 
     def set_pdo(self, pdo_index: int):
@@ -261,7 +261,7 @@ class AP33772:
 
     def clear_mask(self, flag):
         mask_read = self._i2c_read(CMD_MASK, 1)
-        new_mask = mask_read[0] | ~flag
+        new_mask = (mask_read[0] | ~flag) & 0xFF
         time.sleep_ms(5)
         self._i2c_write(CMD_MASK, bytes([new_mask]))
 

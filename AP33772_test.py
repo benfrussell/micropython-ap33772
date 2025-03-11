@@ -34,7 +34,7 @@ def fixed_tests(ap: AP33772, index):
     sleep(1)
 
     max_current  = ap.get_pdo_max_current(index)
-    print(f"Min current: {max_current}mA")
+    print(f"Max current: {max_current}mA")
     voltage = ap.get_pdo_voltage(index)
     print(f"Voltage: {voltage}mV")
 
@@ -59,17 +59,18 @@ def run_tests(ap: AP33772):
 
         pps_index = ap.get_pps_index()
         if pps_index == 8:
-            print("No PPS PDO found - skipping PPS tests")
+            print("\nNo PPS PDO found - skipping PPS tests")
         else:
             pps_tests(ap, pps_index)
 
         fixed_index = None
         for i in range(ap.get_num_pdo()):
             if i != pps_index:
-                print(f"Using PDO {i} for fixed PDO tests")
+                print(f"\nUsing PDO {i} for fixed PDO tests")
+                fixed_index = i
                 break
         if fixed_index is None:
-            print("No fixed PDO found - skipping fixed tests")
+            print("\nNo fixed PDO found - skipping fixed tests")
         else:
             fixed_tests(ap, fixed_index)
 
