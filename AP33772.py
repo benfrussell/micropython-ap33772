@@ -79,7 +79,7 @@ class PDO:
     def __init__(self, fixed_bytes=None, pps_bytes=None):
         if fixed_bytes is not None:
             self.fixed = struct(addressof(fixed_bytes), PDO_FIXED_DATA)
-        elif pps_bytes is not None:
+        if pps_bytes is not None:
             self.pps = struct(addressof(pps_bytes), PDO_PPS_DATA)
 
 class AP33772:
@@ -91,7 +91,7 @@ class AP33772:
         self._num_pdo = 0
         self._index_pdo = 0
         self._req_pps_volt = 0            
-        self._pps_index = 8
+        self._pps_indices = []
         self._pdo_data = []
         self._rdo_data = RDO()
 
@@ -123,7 +123,7 @@ class AP33772:
                 isPPS = pdo_data[3] & 0xF0 == 0xC0
                 if isPPS:
                     self._pdo_data.append(PDO(pps_bytes=pdo_data))
-                    self._pps_index = i
+                    self._pps_indices.append(i)
                     self.exist_pps = 1
                 else:
                     self._pdo_data.append(PDO(fixed_bytes=pdo_data))
@@ -136,13 +136,12 @@ class AP33772:
             target_voltage: mV 
             target_current: mA
         """
-        pps_profile = self._pdo_data[self._pps_index].pps
-        pps_index = self._pps_index
-        if self.exist_pps and pps_profile.max_voltage * 100 >= target_voltage and pps_profile.min_voltage * 100 <= target_voltage:
+        pps_index = self.get_pps_index_by_voltage_current(target_voltage, target_current)
+        if pps_index != -1:
             self._index_pdo = pps_index
-            self._req_pps_volt = target_voltage / 20
+            self._req_pps_volt = int(target_voltage / 20)
             self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
-            self._rdo_data.pps.op_current = target_current / 50 # type: ignore
+            self._rdo_data.pps.op_current = int(target_current / 50) # type: ignore
             self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
             self.write_rdo()
 
@@ -153,35 +152,40 @@ class AP33772:
         Args:
             target_voltage: mV
         """
-        pps_index = self._pps_index
-        if self.exist_pps and self._pdo_data[pps_index].pps.max_voltage * 100 >= target_voltage and self._pdo_data[pps_index].pps.min_voltage * 100 <= target_voltage:
-            self._req_pps_volt = target_voltage / 20
+        pps_index = self.get_pps_index_by_voltage_current(target_voltage, 0)
+        if pps_index != -1:
+            self._req_pps_volt = int(target_voltage / 20)
             self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
-            self._rdo_data.pps.op_current = pps_pdo_data.max_current # type: ignore
+            self._rdo_data.pps.op_current = self._pdo_data[pps_index].pps.max_current # type: ignore
             self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
             self.write_rdo()
         else:
-            temp_index = 0
             # Find which fixed is closest to the target voltage without going over
-            for i in range(self._num_pdo - self.exist_pps):
+            best_fixed_index = 0
+            for i in range(self._num_pdo - len(self._pps_indices)):
                 if self._pdo_data[i].fixed.voltage * 50 <= target_voltage:
-                    temp_index = i
+                    best_fixed_index = i
 
-            # Check if the closest fixed voltage is higher than what PPS can reach
-            # It looks like this line would fail if there's no PPS PDO
-            if not self.exist_pps or (self._pdo_data[temp_index].fixed.voltage * 50 > self._pdo_data[pps_index].pps.max_voltage * 100):
-                self._index_pdo = temp_index
-                self._rdo_data.fixed.obj_position = temp_index + 1 # type: ignore
-                self._rdo_data.fixed.max_current = self._pdo_data[temp_index].fixed.max_current # type: ignore
-                self._rdo_data.fixed.op_current = self._pdo_data[temp_index].fixed.max_current # type: ignore
-                self.write_rdo()
+            if self.exist_pps:
+                # Find which pps has the highest voltage
+                best_pps_index = self._pps_indices[0]
+                for i in self._pps_indices:
+                    if self._pdo_data[i].pps.max_voltage > self._pdo_data[best_pps_index].pps.max_voltage:
+                        best_pps_index = i
+
+                # Check if the closest fixed voltage is higher than what PPS can reach
+                if self._pdo_data[best_fixed_index].fixed.voltage * 50 > self._pdo_data[best_pps_index].pps.max_voltage * 100:
+                    self.set_pdo(best_fixed_index)
+                # The best fixed voltage was NOT higher than the best PPS voltage - use PPS
+                else:
+                    self._index_pdo = pps_index
+                    self._req_pps_volt = self._pdo_data[pps_index].pps.max_voltage * 5
+                    self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
+                    self._rdo_data.pps.op_current = self._pdo_data[pps_index].pps.max_current # type: ignore
+                    self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
+                    self.write_rdo()
             else:
-                self._index_pdo = pps_index
-                self._req_pps_volt = self._pdo_data[pps_index].pps.max_voltage * 5
-                self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
-                self._rdo_data.pps.op_current = self._pdo_data[pps_index].pps.max_current # type: ignore
-                self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
-                self.write_rdo()
+                self.set_pdo(best_fixed_index)
 
     def set_max_current(self, target_max_current: int):
         """
@@ -190,17 +194,15 @@ class AP33772:
         Args:
             target_max_current: mA
         """
-        index_pdo = self._index_pdo
-        pps_index = self._pps_index
-        if index_pdo == pps_index:
-            if target_max_current <= self._pdo_data[pps_index].pps.max_current * 50:
-                self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
+        if self.is_index_pps(self._index_pdo):
+            if target_max_current <= self._pdo_data[self._index_pdo].pps.max_current * 50:
+                self._rdo_data.pps.obj_position = self._index_pdo + 1 # type: ignore
                 self._rdo_data.pps.op_current = int(target_max_current / 50) # type: ignore
                 self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
                 self.write_rdo()
         else:
-            if target_max_current <= self._pdo_data[index_pdo].fixed.max_current * 10:
-                self._rdo_data.fixed.obj_position = index_pdo + 1 # type: ignore
+            if target_max_current <= self._pdo_data[self._index_pdo].fixed.max_current * 10:
+                self._rdo_data.fixed.obj_position = self._index_pdo + 1 # type: ignore
                 self._rdo_data.fixed.max_current = int(target_max_current / 10) # type: ignore
                 self._rdo_data.fixed.op_current = int(target_max_current / 10) # type: ignore
                 self.write_rdo()
@@ -213,13 +215,13 @@ class AP33772:
             pdo_index: Integer in range 0-255. Start from index 0 to (PDONum - 1) if no PPS, (PDONum -2) if PPS found.
         """
 
-        if self._pps_index == 1:
-            guarding = self._num_pdo - 2
+        if self._pps_indices:
+            guarding = self._num_pdo - len(self._pps_indices) - 1
         else:
             guarding = self._num_pdo - 1 # Example array[4] only exist index 0,1,2,3
 
-        # Does this work for PPS?
         if pdo_index <= guarding:
+            self._index_pdo = pdo_index
             self._rdo_data.fixed.obj_position = pdo_index - 1 # type: ignore
             self._rdo_data.fixed.max_current = self._pdo_data[pdo_index].fixed.max_current # type: ignore
             self._rdo_data.fixed.op_current = self._pdo_data[pdo_index].fixed.max_current # type: ignore
@@ -300,7 +302,7 @@ class AP33772:
         print(f"Source PDO Number = {self._num_pdo}\n")
 
         for i, pdo in enumerate(self._pdo_data):
-            if i == self._pps_index:
+            if self.is_index_pps(i):
                 print(f"PDO[{i + 1}] - PPS : {pdo.pps.min_voltage * 100 / 1000}V~{pdo.pps.max_voltage * 100 / 1000}V @ {pdo.pps.max_current * 50 / 1000}A")
             else:
                 print(f"PDO[{i + 1}] - Fixed : {pdo.fixed.voltage * 50 / 1000}V @ {pdo.fixed.max_current * 10 / 1000}A")
@@ -317,7 +319,25 @@ class AP33772:
     
     def get_pps_index(self) -> int:
         """Get index of PPS profile."""
-        return self._pps_index
+        return self._pps_indices[0] if self._pps_indices else -1
+    
+    def get_pps_index_by_voltage_current(self, target_voltage, target_current) -> int:
+        """     
+        Get the index of the first PPS PDO that can provide the target voltage and target current.
+        Returns -1 if no suitable PPS PDO exists.
+        
+        Args:
+            target_voltage: mV 
+            target_current: mA
+        """
+        for pps_index in self._pps_indices:
+            pdo = self._pdo_data[pps_index]
+            if pdo.pps.max_voltage * 100 >= target_voltage and pdo.pps.min_voltage * 100 <= target_voltage and pdo.pps.max_current * 50 >= target_current:
+                return pps_index
+        return -1
+    
+    def is_index_pps(self, index) -> bool:
+        return index in self._pps_indices
 
     def get_pdo_max_current(self, pdo_index: int) -> int:
         """

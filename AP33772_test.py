@@ -12,8 +12,8 @@ def pps_tests(ap: AP33772, index):
     max_current = ap.get_pps_max_current(index)
     print(f"Max current: {max_current}mA")
 
-    print(f"Setting supply voltage to {min_voltage}mV and current to {max_current}mA")
-    ap.set_supply_voltage_current(min_voltage, max_current)  
+    print(f"Setting supply voltage to 5000mV and current to {max_current}mA")
+    ap.set_supply_voltage_current(5000, max_current)  
     sleep(1)
 
     half_current = int(max_current / 2)
@@ -21,8 +21,8 @@ def pps_tests(ap: AP33772, index):
     ap.set_max_current(half_current)
     sleep(1)
 
-    print(f"Setting voltage to {max_voltage}mV")
-    ap.set_voltage(max_voltage)
+    print(f"Setting voltage to 9000mV")
+    ap.set_voltage(9000)
     sleep(1)
 
 def fixed_tests(ap: AP33772, index):
@@ -57,15 +57,20 @@ def run_tests(ap: AP33772):
     else:
         ap.print_pdo()
 
-        pps_index = ap.get_pps_index()
-        if pps_index == 8:
+        pps_index = None
+        for i in range(ap.get_num_pdo()):
+            if ap.is_index_pps(i):
+                print(f"\nUsing PDO {i} for PPS PDO tests")
+                pps_index = i
+                break
+        if pps_index is None:
             print("\nNo PPS PDO found - skipping PPS tests")
         else:
             pps_tests(ap, pps_index)
 
         fixed_index = None
         for i in range(ap.get_num_pdo()):
-            if i != pps_index:
+            if not ap.is_index_pps(i):
                 print(f"\nUsing PDO {i} for fixed PDO tests")
                 fixed_index = i
                 break
