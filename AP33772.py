@@ -138,12 +138,7 @@ class AP33772:
         """
         pps_index = self.get_pps_index_by_voltage_current(target_voltage, target_current)
         if pps_index != -1:
-            self._index_pdo = pps_index
-            self._req_pps_volt = int(target_voltage / 20)
-            self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
-            self._rdo_data.pps.op_current = int(target_current / 50) # type: ignore
-            self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
-            self.write_rdo()
+            self.set_pps_pdo(pps_index, target_voltage, target_current)
 
     def set_voltage(self, target_voltage: int):
         """
@@ -153,39 +148,41 @@ class AP33772:
             target_voltage: mV
         """
         pps_index = self.get_pps_index_by_voltage_current(target_voltage, 0)
+        # If an exact match was found in a PPS PDO
         if pps_index != -1:
-            self._req_pps_volt = int(target_voltage / 20)
-            self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
-            self._rdo_data.pps.op_current = self._pdo_data[pps_index].pps.max_current # type: ignore
-            self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
-            self.write_rdo()
-        else:
-            # Find which fixed is closest to the target voltage without going over
-            best_fixed_index = 0
-            for i in range(self._num_pdo - len(self._pps_indices)):
-                if self._pdo_data[i].fixed.voltage * 50 <= target_voltage:
-                    best_fixed_index = i
+            self.set_pps_pdo(pps_index, target_voltage, self.get_pps_max_current(pps_index))
+            return
 
-            if self.exist_pps:
-                # Find which pps has the highest voltage
-                best_pps_index = self._pps_indices[0]
-                for i in self._pps_indices:
-                    if self._pdo_data[i].pps.max_voltage > self._pdo_data[best_pps_index].pps.max_voltage:
-                        best_pps_index = i
+        # No exact match found in PPS, start looking for the closest matching voltage
+        lowest_pdo_voltage_distance = 100
+        best_pdo_index = 0
+        best_pdo_is_pps = False
+        pps_voltage = 0
 
-                # Check if the closest fixed voltage is higher than what PPS can reach
-                if self._pdo_data[best_fixed_index].fixed.voltage * 50 > self._pdo_data[best_pps_index].pps.max_voltage * 100:
-                    self.set_pdo(best_fixed_index)
-                # The best fixed voltage was NOT higher than the best PPS voltage - use PPS
-                else:
-                    self._index_pdo = pps_index
-                    self._req_pps_volt = self._pdo_data[pps_index].pps.max_voltage * 5
-                    self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
-                    self._rdo_data.pps.op_current = self._pdo_data[pps_index].pps.max_current # type: ignore
-                    self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
-                    self.write_rdo()
+        for i in range(self._num_pdo):
+            if self.is_index_pps(i):
+                # Get whether minimum or maximum voltage is closer
+                pps_min_dist = abs(self.get_pps_min_voltage(i) - target_voltage)
+                pps_max_dist = abs(self.get_pps_max_voltage(i) - target_voltage)
+                if min(pps_min_dist, pps_max_dist) < lowest_pdo_voltage_distance:
+                    lowest_pdo_voltage_distance = min(pps_min_dist, pps_max_dist)
+                    best_pdo_index = i
+                    best_pdo_is_pps = True
+                    if pps_min_dist < pps_max_dist:
+                        pps_voltage = self.get_pps_min_voltage(i)
+                    else:
+                        pps_voltage = self.get_pps_max_voltage(i)
             else:
-                self.set_pdo(best_fixed_index)
+                 fixed_dist = abs(self.get_pdo_voltage(i) - target_voltage)
+                 if fixed_dist < lowest_pdo_voltage_distance:
+                    lowest_pdo_voltage_distance = fixed_dist
+                    best_pdo_index = i
+                    best_pdo_is_pps = False
+
+        if best_pdo_is_pps:
+            self.set_pps_pdo(best_pdo_index, pps_voltage, self.get_pps_max_current(best_pdo_index))
+        else:
+            self.set_pdo(best_pdo_index)
 
     def set_max_current(self, target_max_current: int):
         """
@@ -225,6 +222,27 @@ class AP33772:
             self._rdo_data.fixed.obj_position = pdo_index - 1 # type: ignore
             self._rdo_data.fixed.max_current = self._pdo_data[pdo_index].fixed.max_current # type: ignore
             self._rdo_data.fixed.op_current = self._pdo_data[pdo_index].fixed.max_current # type: ignore
+            self.write_rdo()
+
+    def set_pps_pdo(self, pps_index: int, target_voltage: int, target_current: int):
+        """     
+        Request PPS PDO profile.
+        
+        Args:
+            target_voltage: mV 
+            target_current: mA
+        """
+        if not self._pps_indices:
+            return
+        else:
+            guarding = self._num_pdo - len(self._pps_indices) - 1 # Assumes that PPS PDOs are always at the end
+        
+        if pps_index > guarding:
+            self._index_pdo = pps_index
+            self._req_pps_volt = int(target_voltage / 20)
+            self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
+            self._rdo_data.pps.op_current = int(target_current / 50) # type: ignore
+            self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
             self.write_rdo()
 
     def set_ntc(self, tr25: int, tr50: int, tr75: int, tr100: int):
