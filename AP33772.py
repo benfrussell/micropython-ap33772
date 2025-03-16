@@ -227,7 +227,7 @@ class AP33772:
 
     def set_pps_pdo(self, pps_index: int, target_voltage: int, max_current: int):
         """     
-        Request PPS PDO profile.
+        Request PPS PDO profile at a target voltage and maximum current.
         
         Args:
             target_voltage: mV 
@@ -308,6 +308,12 @@ class AP33772:
         """
         data = self._i2c_read(CMD_CURRENT, 1)
         return data[0] * 24  # I2C read return 24mA/LSB
+    
+    def get_max_current(self) -> int:
+        if self.is_index_pps(self._index_pdo):
+            return self._pdo_data[self._index_pdo].pps.max_current * 50
+        else:
+            return self._pdo_data[self._index_pdo].fixed.max_current * 10
 
     def read_temp(self) -> int:
         """
