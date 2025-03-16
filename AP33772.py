@@ -227,24 +227,27 @@ class AP33772:
             self._rdo_data.fixed.op_current = self._pdo_data[pdo_index].fixed.max_current # type: ignore
             self.write_rdo()
 
-    def set_pps_pdo(self, pps_index: int, target_voltage: int, target_current: int):
+    def set_pps_pdo(self, pps_index: int, target_voltage: int, max_current: int):
         """     
         Request PPS PDO profile.
         
         Args:
             target_voltage: mV 
-            target_current: mA
+            max_current: mA
         """
         if not self._pps_indices:
             return
         else:
-            guarding = self._num_pdo - len(self._pps_indices) - 1 # Assumes that PPS PDOs are always at the end
+            guarding = self._num_pdo - len(self._pps_indices) - 1 # Uses the assumption from set_pdo that PPS PDOs are always at the end
         
         if pps_index > guarding:
+            if target_voltage > self.get_pps_max_voltage(pps_index) or target_voltage < self.get_pps_min_voltage(pps_index) or max_current > self.get_pps_max_current(pps_index):
+                return
+            
             self._index_pdo = pps_index
             self._req_pps_volt = int(target_voltage / 20)
             self._rdo_data.pps.obj_position = pps_index + 1 # type: ignore
-            self._rdo_data.pps.op_current = int(target_current / 50) # type: ignore
+            self._rdo_data.pps.op_current = int(max_current / 50) # type: ignore
             self._rdo_data.pps.voltage = self._req_pps_volt # type: ignore
             self.write_rdo()
 
