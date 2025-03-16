@@ -154,32 +154,35 @@ class AP33772:
             return
 
         # No exact match found in PPS, start looking for the closest matching voltage
-        lowest_pdo_voltage_distance = 100
+        lowest_voltage_dist = float('inf')
         best_pdo_index = 0
-        best_pdo_is_pps = False
-        pps_voltage = 0
+        is_pps = False
 
         for i in range(self._num_pdo):
             if self.is_index_pps(i):
                 # Get whether minimum or maximum voltage is closer
-                pps_min_dist = abs(self.get_pps_min_voltage(i) - target_voltage)
-                pps_max_dist = abs(self.get_pps_max_voltage(i) - target_voltage)
-                if min(pps_min_dist, pps_max_dist) < lowest_pdo_voltage_distance:
-                    lowest_pdo_voltage_distance = min(pps_min_dist, pps_max_dist)
-                    best_pdo_index = i
-                    best_pdo_is_pps = True
-                    if pps_min_dist < pps_max_dist:
-                        pps_voltage = self.get_pps_min_voltage(i)
-                    else:
-                        pps_voltage = self.get_pps_max_voltage(i)
-            else:
-                 fixed_dist = abs(self.get_pdo_voltage(i) - target_voltage)
-                 if fixed_dist < lowest_pdo_voltage_distance:
-                    lowest_pdo_voltage_distance = fixed_dist
-                    best_pdo_index = i
-                    best_pdo_is_pps = False
+                min_voltage = self.get_pps_min_voltage(i)
+                max_voltage = self.get_pps_max_voltage(i)
 
-        if best_pdo_is_pps:
+                if abs(min_voltage - target_voltage) < abs(max_voltage - target_voltage):
+                    pps_voltage = min_voltage
+                else:
+                    pps_voltage = max_voltage
+                voltage_dist = abs(pps_voltage - target_voltage)
+
+                if voltage_dist < lowest_voltage_dist:
+                    lowest_voltage_dist = voltage_dist
+                    best_pdo_index = i
+                    is_pps = True
+            else:
+                voltage_dist = abs(self.get_pdo_voltage(i) - target_voltage)
+
+                if voltage_dist < lowest_voltage_dist:
+                    lowest_voltage_dist = voltage_dist
+                    best_pdo_index = i
+                    is_pps = False
+
+        if is_pps:
             self.set_pps_pdo(best_pdo_index, pps_voltage, self.get_pps_max_current(best_pdo_index))
         else:
             self.set_pdo(best_pdo_index)
