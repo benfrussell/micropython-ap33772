@@ -86,7 +86,6 @@ class AP33772:
     def __init__(self, id=0, scl=1, sda=0, freq=400000):
         """Construct and return an AP33772 object with the ID and GPIO pins of the peripheral"""
         self.i2c = machine.I2C(id, scl=machine.Pin(scl), sda=machine.Pin(sda), freq=freq)
-        self.exist_pps = 0
 
         self._num_pdo = 0
         self._index_pdo = 0
@@ -124,7 +123,6 @@ class AP33772:
                 if isPPS:
                     self._pdo_data.append(PDO(pps_bytes=pdo_data))
                     self._pps_indices.append(i)
-                    self.exist_pps = 1
                 else:
                     self._pdo_data.append(PDO(fixed_bytes=pdo_data))
 
